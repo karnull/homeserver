@@ -32,6 +32,20 @@ Errors always come back as `{"error": "<code>", "detail": "<text>"}`.
 | ------ | --------- | ---------------------------------------------- |
 | GET    | `/health` | `{"ok": true, "version": "…"}`, no auth needed |
 
+### System (read only)
+
+| Method | Path             | Returns                                               |
+| ------ | ---------------- | ----------------------------------------------------- |
+| GET    | `/system/stats`  | everything below in one call                          |
+| GET    | `/system/temps`  | sensor readings per chip: label, current, high, critical |
+| GET    | `/system/memory` | RAM and swap: total, used, available or free, percent |
+| GET    | `/system/cpu`    | core count, overall and per-core usage, load averages |
+| GET    | `/system/disk`   | usage for each mount in `disk_mounts`                 |
+| GET    | `/system/uptime` | boot time and uptime in seconds                       |
+
+Sizes are in bytes and temperatures in degrees Celsius. CPU usage is sampled
+over 0.2 seconds, so `/system/cpu` and `/system/stats` take that long to answer.
+
 ## Install
 
 On the host, as your own user (never root), with [uv](https://docs.astral.sh/uv/)
@@ -84,6 +98,9 @@ stat -c '%a' "$sock"                                    # 660
 curl -s --unix-socket "$sock" http://uplink/health      # {"ok":true,...}
 curl -s --unix-socket "$sock" http://uplink/nowhere \
      -H "Authorization: Bearer $token"                  # {"error":"not_found",...}
+curl -s --unix-socket "$sock" http://uplink/system/stats # {"error":"unauthorised",...}
+curl -s --unix-socket "$sock" http://uplink/system/stats \
+     -H "Authorization: Bearer $token"                  # temps, memory, cpu, disk, uptime
 tail -n 2 ~/.local/state/uplink/audit.log
 ```
 
