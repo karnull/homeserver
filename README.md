@@ -1,58 +1,103 @@
 # Uplink
 
-A narrow REST server that lets the judy container act on the host
-
-
+A small REST server that runs on the host so the `judy` container can act on
+it without the Docker socket or a shell. Every action is a fixed, named route.
+There is no generic "run this command" endpoint.
 
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json)](https://github.com/karshosphere/template-python)
 
-## Setup
+## How it is reached
 
-### Requirements
+Uplink listens on a Unix socket, not TCP:
 
-* Add system requirements here
-
-### Build
-
-```bash
-$ make build
+```
+~/.local/state/uplink/uplink.sock   (mode 0660)
 ```
 
-### Run
+Every route except `/health` needs `Authorization: Bearer <token>`. The token is
+in `~/.config/uplink/token`, and `install.sh` writes a copy to
+`~/.config/uplink/judy.env` as `UPLINK_TOKEN` for the container's env file.
 
-```bash
-$ uv run main
+```sh
+curl --unix-socket ~/.local/state/uplink/uplink.sock \
+     -H "Authorization: Bearer $UPLINK_TOKEN" \
+     http://uplink/health
 ```
 
+Errors always come back as `{"error": "<code>", "detail": "<text>"}`.
 
+## Routes
 
-## Testing
+| Method | Path      | Returns                                        |
+| ------ | --------- | ---------------------------------------------- |
+| GET    | `/health` | `{"ok": true, "version": "…"}`, no auth needed |
 
-### Run all tests
+## Install
 
-```bash
-$ make test
+On the host, as your own user (never root), with [uv](https://docs.astral.sh/uv/)
+installed:
+
+```sh
+deploy/install.sh
 ```
 
-### Formatting
+It creates the config and state directories, generates a token if there is none,
+installs Uplink into `~/.local/bin` and enables the `uplink` systemd user
+service. Re-run it after pulling changes. To keep the service running while you
+are logged out:
 
-```bash
-$ make format           # format in place
-$ make format-dry-run   # list files that need formatting
+```sh
+loginctl enable-linger "$USER"
 ```
 
+## Config
 
+`~/.config/uplink/config.toml`, or the file named in `UPLINK_CONFIG`. Every key
+is optional; unknown keys stop the service from starting.
 
-## Documentation
+```toml
+projects_dir = "~/Blackwall"
+socket_path  = "~/.local/state/uplink/uplink.sock"
+token_file   = "~/.config/uplink/token"
+audit_log    = "~/.local/state/uplink/audit.log"
+protected    = ["judy"]
+disk_mounts  = ["/", "/home"]
+command_timeout_seconds = 900
+```
 
-* [Project Structure](docs/project_structure.md): repository layout and module responsibilities
+## Audit log
 
+Every request is appended to `~/.local/state/uplink/audit.log` as one JSON
+line with its time, method, path, status and duration. The same lines go to
+stdout, so `journalctl --user -u uplink` has them too.
 
+## Smoke test
 
+After installing on the host:
 
-## Release
+```sh
+sock=~/.local/state/uplink/uplink.sock
+token=$(cat ~/.config/uplink/token)
 
-`make release` builds a wheel and an sdist into `dist/`. They install on any platform with Python 3.13.
+systemctl --user status uplink
+stat -c '%a' "$sock"                                    # 660
+curl -s --unix-socket "$sock" http://uplink/health      # {"ok":true,...}
+curl -s --unix-socket "$sock" http://uplink/nowhere \
+     -H "Authorization: Bearer $token"                  # {"error":"not_found",...}
+tail -n 2 ~/.local/state/uplink/audit.log
+```
+
+## Development
+
+```sh
+make build            # install the locked dependencies
+make test
+make format           # format in place
+make format-dry-run   # list files that need formatting
+```
+
+The tests use fakes in place of Docker, psutil and subprocess, so they run in a
+container with no Docker socket.
 
 
 
