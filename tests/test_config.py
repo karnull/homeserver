@@ -33,6 +33,7 @@ audit_log = "/var/log/uplink.log"
 protected = ["judy", "db"]
 disk_mounts = ["/"]
 command_timeout_seconds = 60
+d_command = "/usr/local/bin/d"
 """,
     )
     config = load_config(path)
@@ -43,6 +44,7 @@ command_timeout_seconds = 60
     assert config.protected == ("judy", "db")
     assert config.disk_mounts == ("/",)
     assert config.command_timeout_seconds == 60
+    assert config.d_command == "/usr/local/bin/d"
 
 
 def test_expands_tilde(tmp_path):
@@ -66,6 +68,7 @@ def test_env_var_picks_the_file(tmp_path, monkeypatch):
         "protected = [1]",
         "command_timeout_seconds = 0",
         "command_timeout_seconds = true",
+        'd_command = ""',
         "not toml at all",
     ],
 )

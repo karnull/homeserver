@@ -27,6 +27,7 @@ class Config:
     protected: tuple[str, ...] = ("judy",)
     disk_mounts: tuple[str, ...] = ("/", "/home")
     command_timeout_seconds: int = 900
+    d_command: str = "d"
 
 
 class ConfigError(Exception):
@@ -46,6 +47,10 @@ def _coerce(key: str, value):
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
             raise ConfigError(f"{key} must be a list of strings")
         return tuple(value)
+    if key == "d_command":
+        if not isinstance(value, str) or not value:
+            raise ConfigError(f"{key} must be a non-empty string")
+        return value
     if key == "command_timeout_seconds":
         if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
             raise ConfigError(f"{key} must be a positive integer")
