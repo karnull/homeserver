@@ -1,10 +1,11 @@
 import sys
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from uplink.auth import TokenError, read_token, require_token
 from uplink.config import Config, ConfigError, load_config
 from uplink.errors import UplinkError
 from uplink.routes import system
@@ -35,17 +36,25 @@ def add_error_handlers(app: FastAPI) -> None:
         return error_response(422, "invalid_request", str(exc.errors()))
 
 
-def create_app(config: Config) -> FastAPI:
+def create_app(config: Config, token: str) -> FastAPI:
     app = FastAPI(title="uplink", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.config = config
+    app.state.token = token
     add_error_handlers(app)
     app.include_router(system.public)
+    app.include_router(authed_routes(), dependencies=[Depends(require_token)])
     return app
+
+
+def authed_routes() -> APIRouter:
+    router = APIRouter()
+    return router
 
 
 def main() -> None:
     try:
         config = load_config()
-    except ConfigError as e:
-        sys.exit(f"uplink: bad config: {e}")
-    serve(create_app(config), config.socket_path)
+        token = read_token(config.token_file)
+    except (ConfigError, TokenError) as e:
+        sys.exit(f"uplink: {e}")
+    serve(create_app(config, token), config.socket_path)

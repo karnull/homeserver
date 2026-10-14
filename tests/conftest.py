@@ -17,6 +17,19 @@ def config(tmp_path):
     )
 
 
+TOKEN = "test-token"
+
+
 @pytest.fixture
-def client(config):
-    return TestClient(create_app(config))
+def auth():
+    return {"Authorization": f"Bearer {TOKEN}"}
+
+
+@pytest.fixture
+def app(config):
+    return create_app(config, TOKEN)
+
+
+@pytest.fixture
+def client(app):
+    return TestClient(app)
