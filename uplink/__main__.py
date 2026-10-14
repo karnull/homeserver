@@ -8,7 +8,7 @@ Copyright (c) 2026 Apache-2.0 license
 
 import sys
 
-from uplink.main import main
+from uplink.app import main
 
 if __name__ == "__main__":
     sys.exit(main())

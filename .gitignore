@@ -25,3 +25,6 @@ dist/
 *.eggs
 .installed.cfg
 
+# test and lint caches
+.pytest_cache/
+.ruff_cache/

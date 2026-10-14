@@ -6,4 +6,6 @@ Copyright (c) 2026 Apache-2.0 license
 @brief  A narrow REST server that lets the judy container act on the host
 """
 
-__all__ = []
+from importlib.metadata import version
+
+__version__ = version("uplink")
