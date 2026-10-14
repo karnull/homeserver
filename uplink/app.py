@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from uplink import audit
 from uplink.auth import TokenError, read_token, require_token
 from uplink.config import Config, ConfigError, load_config
 from uplink.errors import UplinkError
@@ -41,6 +42,7 @@ def create_app(config: Config, token: str) -> FastAPI:
     app.state.config = config
     app.state.token = token
     add_error_handlers(app)
+    audit.install(app, audit.AuditLog(config.audit_log))
     app.include_router(system.public)
     app.include_router(authed_routes(), dependencies=[Depends(require_token)])
     return app
