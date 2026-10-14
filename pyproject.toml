@@ -8,6 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = "==3.15.*"
 dependencies = [
+    "docker>=7",
     "fastapi>=0.115",
     "psutil>=6",
     "uvicorn>=0.30",

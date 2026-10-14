@@ -5,11 +5,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
-from uplink import audit
+from uplink import audit, docker_ops
 from uplink.auth import TokenError, read_token, require_token
 from uplink.config import Config, ConfigError, load_config
 from uplink.errors import UplinkError
-from uplink.routes import system
+from uplink.routes import containers, system
 from uplink.server import serve
 
 _HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
@@ -41,6 +41,9 @@ def create_app(config: Config, token: str) -> FastAPI:
     app = FastAPI(title="uplink", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.config = config
     app.state.token = token
+    app.state.containers = docker_ops.Containers(
+        docker_ops.connect, config.projects_dir, config.protected
+    )
     add_error_handlers(app)
     audit.install(app, audit.AuditLog(config.audit_log))
     app.include_router(system.public)
@@ -51,6 +54,7 @@ def create_app(config: Config, token: str) -> FastAPI:
 def authed_routes() -> APIRouter:
     router = APIRouter()
     router.include_router(system.router)
+    router.include_router(containers.router)
     return router
 
 
