@@ -63,6 +63,24 @@ Containers named in `protected` (by default `judy`) get `403 protected`, so
 Judy cannot stop itself. Both checks use the name Docker reports, so
 addressing a container by ID does not get round them.
 
+### Projects
+
+| Method | Path                  | Does                                                  |
+| ------ | --------------------- | ----------------------------------------------------- |
+| GET    | `/projects`           | folders in `projects_dir` with a compose file, and their containers |
+| POST   | `/projects/{name}/up` | `d up` in the project folder                          |
+| POST   | `/projects/{name}/down` | `d down` in the project folder                      |
+
+A project name must match `^[A-Za-z0-9][A-Za-z0-9._-]*$`, must be a real folder
+directly inside `projects_dir` (not a symlink), and must contain
+`.devcontainer/compose.yaml`. Anything else is refused before `d` runs.
+
+`up` and `down` run synchronously, so `d up` can take minutes while it builds.
+The response carries the command, its exit code and the last 64 KiB of stdout
+and stderr. A run longer than `command_timeout_seconds` is killed and comes back
+with `"timed_out": true`. Only one action runs per project at a time; a second
+gets `409 busy`.
+
 ## Install
 
 On the host, as your own user (never root), with [uv](https://docs.astral.sh/uv/)
@@ -94,7 +112,11 @@ audit_log    = "~/.local/state/uplink/audit.log"
 protected    = ["judy"]
 disk_mounts  = ["/", "/home"]
 command_timeout_seconds = 900
+d_command    = "d"
 ```
+
+`d_command` is looked up on the service's `PATH`, which under systemd is short.
+If `d` lives somewhere like `~/bin`, give its full path.
 
 ## Audit log
 
@@ -122,6 +144,10 @@ curl -s --unix-socket "$sock" http://uplink/containers \
      -H "Authorization: Bearer $token"                  # every container on the host
 curl -s --unix-socket "$sock" -X POST http://uplink/containers/judy/stop \
      -H "Authorization: Bearer $token"                  # {"error":"protected",...}
+curl -s --unix-socket "$sock" http://uplink/projects \
+     -H "Authorization: Bearer $token"                  # every project with a compose file
+curl -s --unix-socket "$sock" -X POST http://uplink/projects/uplink/up \
+     -H "Authorization: Bearer $token"                  # exit code and output of d up
 tail -n 2 ~/.local/state/uplink/audit.log
 ```
 
