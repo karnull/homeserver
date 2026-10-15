@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 PROJECT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 COMPOSE_FILE = Path(".devcontainer/compose.yaml")
 OUTPUT_LIMIT = 64 * 1024
+GITHUB_REPO_URL = re.compile(
+    r"https://github\.com/([A-Za-z0-9-]+)/([A-Za-z0-9][A-Za-z0-9._-]*?)(?:\.git)?/?"
+)
 
 
 def valid_project_name(name: str) -> bool:
@@ -59,6 +62,18 @@ class Projects:
         if name in self.config.protected_projects:
             raise UplinkError(403, "protected", f"{name} is protected")
         return path
+
+    def fork(self, name: str, url: str) -> dict:
+        if not valid_project_name(name):
+            raise UplinkError(400, "invalid_name", f"not a project name: {name!r}")
+        if not GITHUB_REPO_URL.fullmatch(url):
+            raise UplinkError(
+                400, "invalid_url", f"not a GitHub repository URL: {url!r}"
+            )
+        target = self.config.projects_dir / name
+        if target.exists() or target.is_symlink():
+            raise UplinkError(409, "already_exists", f"{target} already exists")
+        raise UplinkError(501, "not_implemented", "forking is not built yet")
 
     def _names(self) -> list[str]:
         root = self.config.projects_dir
