@@ -12,13 +12,12 @@ def fake(app, config):
     fake = FakeDocker()
     projects = config.projects_dir
     fake.add("judy", "running", str(projects / ".devcontainer"))
+    fake.add("judy-devcontainer", "running", str(projects / "Judy" / ".devcontainer"))
     fake.add("blog-dev", "exited", str(projects / "blog" / ".devcontainer"))
     fake.add("shop-dev", "running", str(projects / "shop" / ".devcontainer"))
     fake.add("postgres", "running", "/srv/postgres")
     fake.add("loose", "exited")
-    app.state.containers = Containers(
-        lambda: fake, config.projects_dir, config.protected
-    )
+    app.state.containers = Containers(lambda: fake, config)
     return fake
 
 
@@ -33,7 +32,14 @@ def test_lists_every_container(client, auth, fake):
         c["name"]: c
         for c in client.get("/containers", headers=auth).json()["containers"]
     }
-    assert sorted(listed) == ["blog-dev", "judy", "loose", "postgres", "shop-dev"]
+    assert sorted(listed) == [
+        "blog-dev",
+        "judy",
+        "judy-devcontainer",
+        "loose",
+        "postgres",
+        "shop-dev",
+    ]
     assert listed["blog-dev"] == {
         "name": "blog-dev",
         "image": "img:latest",
@@ -43,6 +49,8 @@ def test_lists_every_container(client, auth, fake):
         "controllable": True,
     }
     assert listed["judy"]["controllable"] is False
+    assert listed["judy-devcontainer"]["project"] == "Judy"
+    assert listed["judy-devcontainer"]["controllable"] is False
     assert listed["postgres"]["project"] is None
     assert listed["loose"]["project"] is None
 
@@ -85,6 +93,13 @@ def test_acts_on_project_containers(client, auth, fake, action, before, after):
 
 def test_refuses_protected(client, auth, fake):
     response = client.post("/containers/judy/stop", headers=auth)
+    assert response.status_code == 403
+    assert response.json()["error"] == "protected"
+    assert fake.calls == []
+
+
+def test_refuses_containers_of_protected_projects(client, auth, fake):
+    response = client.post("/containers/judy-devcontainer/stop", headers=auth)
     assert response.status_code == 403
     assert response.json()["error"] == "protected"
     assert fake.calls == []
@@ -155,7 +170,7 @@ def test_docker_unavailable(client, auth, app, config):
     def refuse():
         raise DockerException("socket not found")
 
-    app.state.containers = Containers(refuse, config.projects_dir, config.protected)
+    app.state.containers = Containers(refuse, config)
     response = client.get("/containers", headers=auth)
     assert response.status_code == 503
     assert response.json()["error"] == "docker_unavailable"

@@ -8,6 +8,7 @@ from typing import Protocol
 import docker
 from docker.errors import APIError, DockerException, NotFound
 
+from uplink.config import Config
 from uplink.errors import UplinkError
 from uplink.projects import valid_project_name
 
@@ -42,16 +43,27 @@ def owning_project(labels: dict | None, projects_dir: Path) -> str | None:
 
 
 class Containers:
-    def __init__(
-        self,
-        connect: Callable[[], DockerAPI],
-        projects_dir: Path,
-        protected: tuple[str, ...],
-    ):
+    def __init__(self, connect: Callable[[], DockerAPI], config: Config):
         self._connect = connect
         self._api: DockerAPI | None = None
-        self.projects_dir = projects_dir
-        self.protected = protected
+        self.projects_dir = config.projects_dir
+        self.protected = config.protected
+        self.protected_projects = config.protected_projects
+
+    def _refusal(self, name: str, project: str | None) -> UplinkError | None:
+        if name in self.protected:
+            return UplinkError(403, "protected", f"{name} is protected")
+        if project in self.protected_projects:
+            return UplinkError(
+                403, "protected", f"{name} belongs to the protected project {project}"
+            )
+        if project is None:
+            return UplinkError(
+                403,
+                "not_a_project",
+                f"{name} does not belong to a project in {self.projects_dir}",
+            )
+        return None
 
     def _call(self, fn: Callable[[DockerAPI], object]):
         try:
@@ -76,7 +88,7 @@ class Containers:
             "state": entry.get("State"),
             "status": entry.get("Status"),
             "project": project,
-            "controllable": project is not None and name not in self.protected,
+            "controllable": self._refusal(name, project) is None,
         }
 
     def list(self) -> list[dict]:
@@ -105,20 +117,15 @@ class Containers:
             "exit_code": state.get("ExitCode"),
             "restart_count": attrs.get("RestartCount"),
             "project": project,
-            "controllable": project is not None and real_name not in self.protected,
+            "controllable": self._refusal(real_name, project) is None,
         }
 
     def _controllable(self, name: str) -> dict:
         details = self.get(name)
         # The check uses the inspected name, so an ID or prefix cannot slip past the protected list.
-        if details["name"] in self.protected:
-            raise UplinkError(403, "protected", f"{details['name']} is protected")
-        if details["project"] is None:
-            raise UplinkError(
-                403,
-                "not_a_project",
-                f"{details['name']} does not belong to a project in {self.projects_dir}",
-            )
+        refusal = self._refusal(details["name"], details["project"])
+        if refusal:
+            raise refusal
         return details
 
     def start(self, name: str) -> dict:

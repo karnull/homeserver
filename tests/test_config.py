@@ -19,6 +19,7 @@ def test_defaults_live_under_home():
     config = Config()
     assert config.projects_dir == Path.home() / "Blackwall"
     assert config.protected == ("judy",)
+    assert config.protected_projects == ("Judy",)
     assert config.command_timeout_seconds == 900
 
 
@@ -31,6 +32,7 @@ socket_path = "/run/uplink.sock"
 token_file = "/etc/uplink/token"
 audit_log = "/var/log/uplink.log"
 protected = ["judy", "db"]
+protected_projects = ["Judy", "infra"]
 disk_mounts = ["/"]
 command_timeout_seconds = 60
 d_command = "/usr/local/bin/d"
@@ -42,6 +44,7 @@ d_command = "/usr/local/bin/d"
     assert config.token_file == Path("/etc/uplink/token")
     assert config.audit_log == Path("/var/log/uplink.log")
     assert config.protected == ("judy", "db")
+    assert config.protected_projects == ("Judy", "infra")
     assert config.disk_mounts == ("/",)
     assert config.command_timeout_seconds == 60
     assert config.d_command == "/usr/local/bin/d"

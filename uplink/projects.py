@@ -54,6 +54,12 @@ class Projects:
             raise UplinkError(404, "project_not_found", f"no {COMPOSE_FILE} in {path}")
         return path
 
+    def _actionable(self, name: str) -> Path:
+        path = self.resolve(name)
+        if name in self.config.protected_projects:
+            raise UplinkError(403, "protected", f"{name} is protected")
+        return path
+
     def _names(self) -> list[str]:
         root = self.config.projects_dir
         if not root.is_dir():
@@ -82,13 +88,14 @@ class Projects:
             {
                 "name": name,
                 "path": str(self.resolve(name)),
+                "protected": name in self.config.protected_projects,
                 "containers": by_project.get(name, []),
             }
             for name in self._names()
         ]
 
     def run_d(self, name: str, action: str) -> dict:
-        path = self.resolve(name)
+        path = self._actionable(name)
         d = shutil.which(self.config.d_command)
         if d is None:
             raise UplinkError(
