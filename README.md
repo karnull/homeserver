@@ -71,12 +71,18 @@ addressing a container by ID does not get round them.
 | GET    | `/projects`           | folders in `projects_dir` with a compose file, and their containers |
 | POST   | `/projects/{name}/up` | `d up` in the project folder                          |
 | POST   | `/projects/{name}/down` | `d down` in the project folder                      |
+| POST   | `/projects/fork`      | fork a repository into a new project (not built yet)  |
 
 A project name must match `^[A-Za-z0-9][A-Za-z0-9._-]*$`, must be a real folder
 directly inside `projects_dir` (not a symlink), and must contain
 `.devcontainer/compose.yaml`. Anything else is refused before `d` runs.
 Projects in `protected_projects` are listed, marked `"protected": true`, but
 `up` and `down` on them get `403 protected`.
+
+`/projects/fork` takes `{"name": "<folder>", "url": "https://github.com/<owner>/<repo>"}`.
+The name follows the rules above and must not exist yet; the URL must be a plain
+HTTPS GitHub repository URL. A valid request currently gets
+`501 not_implemented`; the forking itself comes later.
 
 Judy lives in `~/Blackwall/Judy/` like any other project, and mounts only its
 own folder. Nothing that can reach Uplink can write another project's

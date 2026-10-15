@@ -7,3 +7,4 @@
 * feature/container-routes: list every container, and start, stop or restart those belonging to a project, never protected ones.
 * feature/project-routes: list the projects in ~/Blackwall and bring them up and down through the host's d script.
 * feature/protected-projects: Judy's own project in ~/Blackwall/Judy and its containers are off-limits to every action.
+* feature/fork-endpoint: POST /projects/fork validates a folder name and GitHub URL; forking itself is not built yet.
