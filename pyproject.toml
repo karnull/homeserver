@@ -3,7 +3,7 @@ name = "uplink"
 version = "0.1.0"
 description = "A narrow REST server that lets the judy container act on the host"
 authors = [
-    { name = "karsh", email = "karshmail@icloud.com" },
+    { name = "Karnull", email = "karshmail@icloud.com" },
 ]
 readme = "README.md"
 requires-python = "==3.15.*"
