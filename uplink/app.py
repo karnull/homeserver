@@ -50,6 +50,7 @@ def create_app(config: Config, token: str) -> FastAPI:
 
 def authed_routes() -> APIRouter:
     router = APIRouter()
+    router.include_router(system.router)
     return router
 
 
