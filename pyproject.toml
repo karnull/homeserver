@@ -1,0 +1,32 @@
+[project]
+name = "uplink"
+version = "0.1.0"
+description = "A narrow REST server that lets the judy container act on the host"
+authors = [
+    { name = "karsh", email = "karshmail@icloud.com" },
+]
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[project.scripts]
+uplink = "uplink.app:main"
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["uplink*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+    "httpx2>=2.13.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
