@@ -59,8 +59,9 @@ over 0.2 seconds, so `/system/cpu` and `/system/stats` take that long to answer.
 Listing covers every container on the host. Start, stop and restart only touch
 a container whose `com.docker.compose.project.working_dir` label resolves to a
 folder directly inside `projects_dir`; anything else gets `403 not_a_project`.
-Containers named in `protected` (by default `judy`) get `403 protected`, so
-Judy cannot stop itself. Both checks use the name Docker reports, so
+Containers named in `protected` (by default `judy`), and every container
+belonging to a project in `protected_projects` (by default `Judy`), get
+`403 protected`, so Judy cannot stop itself. Both checks use the name Docker reports, so
 addressing a container by ID does not get round them.
 
 ### Projects
@@ -74,6 +75,13 @@ addressing a container by ID does not get round them.
 A project name must match `^[A-Za-z0-9][A-Za-z0-9._-]*$`, must be a real folder
 directly inside `projects_dir` (not a symlink), and must contain
 `.devcontainer/compose.yaml`. Anything else is refused before `d` runs.
+Projects in `protected_projects` are listed, marked `"protected": true`, but
+`up` and `down` on them get `403 protected`.
+
+Judy lives in `~/Blackwall/Judy/` like any other project, and mounts only its
+own folder. Nothing that can reach Uplink can write another project's
+`.devcontainer`, which matters because `d up` on a hostile compose file would
+amount to root on the host.
 
 `up` and `down` run synchronously, so `d up` can take minutes while it builds.
 The response carries the command, its exit code and the last 64 KiB of stdout
@@ -110,6 +118,7 @@ socket_path  = "~/.local/state/uplink/uplink.sock"
 token_file   = "~/.config/uplink/token"
 audit_log    = "~/.local/state/uplink/audit.log"
 protected    = ["judy"]
+protected_projects = ["Judy"]
 disk_mounts  = ["/", "/home"]
 command_timeout_seconds = 900
 d_command    = "d"

@@ -42,9 +42,7 @@ def create_app(config: Config, token: str) -> FastAPI:
     app = FastAPI(title="uplink", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.config = config
     app.state.token = token
-    app.state.containers = docker_ops.Containers(
-        docker_ops.connect, config.projects_dir, config.protected
-    )
+    app.state.containers = docker_ops.Containers(docker_ops.connect, config)
     app.state.projects = projects.Projects(config, app.state.containers)
     add_error_handlers(app)
     audit.install(app, audit.AuditLog(config.audit_log))

@@ -30,18 +30,18 @@ def fake(app, config, root):
     make_project(root, "blog")
     make_project(root, "shop")
     make_project(root, "notes", compose=False)
+    make_project(root, "Judy")
     (root / ".devcontainer").mkdir()
     (root / ".devcontainer" / "compose.yaml").write_text("services: {}\n")
     (root / "README.md").write_text("not a project")
 
     fake = FakeDocker()
     fake.add("judy", "running", str(root / ".devcontainer"))
+    fake.add("judy-devcontainer", "running", str(root / "Judy" / ".devcontainer"))
     fake.add("blog-devcontainer", "running", str(root / "blog" / ".devcontainer"))
     fake.add("blog-db", "running", str(root / "blog" / ".devcontainer"))
     fake.add("shop-devcontainer", "exited", str(root / "shop" / ".devcontainer"))
-    app.state.containers = Containers(
-        lambda: fake, config.projects_dir, config.protected
-    )
+    app.state.containers = Containers(lambda: fake, config)
     app.state.projects = Projects(config, app.state.containers)
     return fake
 
@@ -69,8 +69,10 @@ def test_needs_token(client, fake, runs):
 
 def test_lists_projects_with_containers(client, auth, fake, root):
     listed = client.get("/projects", headers=auth).json()["projects"]
-    assert [p["name"] for p in listed] == ["blog", "shop"]
-    blog, shop = listed
+    assert [p["name"] for p in listed] == ["Judy", "blog", "shop"]
+    judy, blog, shop = listed
+    assert judy["protected"] is True
+    assert blog["protected"] is False
     assert blog["path"] == str((root / "blog").resolve())
     assert sorted(c["name"] for c in blog["containers"]) == [
         "blog-db",
@@ -104,6 +106,14 @@ def test_runs_d_in_the_project(client, auth, fake, runs, root, config, action):
     assert call["cwd"] == (root / "blog").resolve()
     assert call["timeout"] == config.command_timeout_seconds
     assert call["stdin"] == subprocess.DEVNULL
+
+
+@pytest.mark.parametrize("action", ["up", "down"])
+def test_refuses_protected_projects(client, auth, fake, runs, action):
+    response = client.post(f"/projects/Judy/{action}", headers=auth)
+    assert response.status_code == 403
+    assert response.json()["error"] == "protected"
+    assert runs == []
 
 
 def test_reports_failures(client, auth, fake, monkeypatch, runs):
