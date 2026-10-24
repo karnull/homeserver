@@ -46,10 +46,27 @@ Errors always come back as `{"error": "<code>", "detail": "<text>"}`.
 Sizes are in bytes and temperatures in degrees Celsius. CPU usage is sampled
 over 0.2 seconds, so `/system/cpu` and `/system/stats` take that long to answer.
 
+### Containers
+
+| Method | Path                         | Does                                              |
+| ------ | ---------------------------- | ------------------------------------------------- |
+| GET    | `/containers`                | list all: name, image, state, status, project, controllable |
+| GET    | `/containers/{name}`         | one container's state, health, timings and project |
+| POST   | `/containers/{name}/start`   | start a stopped container                         |
+| POST   | `/containers/{name}/stop`    | stop a running container (10 second grace period) |
+| POST   | `/containers/{name}/restart` | restart                                           |
+
+Listing covers every container on the host. Start, stop and restart only touch
+a container whose `com.docker.compose.project.working_dir` label resolves to a
+folder directly inside `projects_dir`; anything else gets `403 not_a_project`.
+Containers named in `protected` (by default `judy`) get `403 protected`, so
+Judy cannot stop itself. Both checks use the name Docker reports, so
+addressing a container by ID does not get round them.
+
 ## Install
 
 On the host, as your own user (never root), with [uv](https://docs.astral.sh/uv/)
-installed:
+installed and your user in the `docker` group:
 
 ```sh
 deploy/install.sh
@@ -101,6 +118,10 @@ curl -s --unix-socket "$sock" http://uplink/nowhere \
 curl -s --unix-socket "$sock" http://uplink/system/stats # {"error":"unauthorised",...}
 curl -s --unix-socket "$sock" http://uplink/system/stats \
      -H "Authorization: Bearer $token"                  # temps, memory, cpu, disk, uptime
+curl -s --unix-socket "$sock" http://uplink/containers \
+     -H "Authorization: Bearer $token"                  # every container on the host
+curl -s --unix-socket "$sock" -X POST http://uplink/containers/judy/stop \
+     -H "Authorization: Bearer $token"                  # {"error":"protected",...}
 tail -n 2 ~/.local/state/uplink/audit.log
 ```
 
