@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request
+from pydantic import BaseModel, ConfigDict
 
 from uplink import audit
 
@@ -12,6 +13,18 @@ def projects(request: Request):
 @router.get("")
 def list_projects(request: Request):
     return {"projects": projects(request).list()}
+
+
+class ForkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    url: str
+
+
+@router.post("/fork")
+def fork(request: Request, body: ForkRequest):
+    audit.note(request, project=body.name, action="fork", url=body.url)
+    return projects(request).fork(body.name, body.url)
 
 
 def _run_d(request: Request, name: str, action: str) -> dict:

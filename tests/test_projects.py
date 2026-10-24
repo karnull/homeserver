@@ -243,3 +243,94 @@ def test_unknown_project(client, auth, fake, runs):
         client.post("/projects/ghost/up", headers=auth).json()["error"]
         == "project_not_found"
     )
+
+
+def fork(client, auth, name="newthing", url="https://github.com/someone/newthing"):
+    return client.post("/projects/fork", headers=auth, json={"name": name, "url": url})
+
+
+def test_fork_needs_token(client, fake):
+    assert (
+        client.post(
+            "/projects/fork", json={"name": "x", "url": "https://github.com/a/b"}
+        ).status_code
+        == 401
+    )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com/someone/newthing",
+        "https://github.com/some-one/new.thing.git",
+        "https://github.com/someone/new_thing/",
+    ],
+)
+def test_fork_accepts_valid_request_but_is_not_built_yet(client, auth, fake, root, url):
+    response = fork(client, auth, url=url)
+    assert response.status_code == 501
+    assert response.json()["error"] == "not_implemented"
+    assert not (root / "newthing").exists()
+
+
+@pytest.mark.parametrize("name", ["..", ".hidden", "-rf", "a/b", "a b", "$(id)", ""])
+def test_fork_refuses_invalid_names(client, auth, fake, name):
+    response = fork(client, auth, name=name)
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_name"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://github.com/someone/newthing",
+        "git@github.com:someone/newthing.git",
+        "https://gitlab.com/someone/newthing",
+        "https://github.com.evil.com/someone/newthing",
+        "https://github.com/someone",
+        "https://github.com/someone/newthing/tree/main",
+        "https://github.com/someone/newthing?x=1",
+        "https://github.com/someone/new thing",
+        "https://github.com/someone/..",
+        "https://github.com/someone/.git",
+        "file:///etc/passwd",
+        "--upload-pack=touch /tmp/x",
+    ],
+)
+def test_fork_refuses_invalid_urls(client, auth, fake, url):
+    response = fork(client, auth, url=url)
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_url"
+
+
+@pytest.mark.parametrize("name", ["blog", "notes", "Judy", "README.md"])
+def test_fork_refuses_existing_paths(client, auth, fake, name):
+    response = fork(client, auth, name=name)
+    assert response.status_code == 409
+    assert response.json()["error"] == "already_exists"
+
+
+def test_fork_refuses_existing_symlink(client, auth, fake, root, tmp_path):
+    (root / "dangling").symlink_to(tmp_path / "nowhere")
+    assert fork(client, auth, name="dangling").json()["error"] == "already_exists"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{}, {"name": "x"}, {"name": "x", "url": "https://github.com/a/b", "extra": 1}],
+)
+def test_fork_refuses_bad_bodies(client, auth, fake, body):
+    response = client.post("/projects/fork", headers=auth, json=body)
+    assert response.status_code == 422
+    assert response.json()["error"] == "invalid_request"
+
+
+def test_fork_is_audited(client, auth, fake, config):
+    fork(client, auth)
+    record = json.loads(config.audit_log.read_text().splitlines()[-1])
+    assert (record["action"], record["project"], record["outcome"]) == (
+        "fork",
+        "newthing",
+        501,
+    )
+    assert record["url"] == "https://github.com/someone/newthing"
