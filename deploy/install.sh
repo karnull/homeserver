@@ -29,7 +29,7 @@ chmod 600 "$token_file"
 constraints=$(mktemp)
 trap 'rm -f "$constraints"' EXIT
 (cd "$repo" && uv export --frozen --no-dev --no-emit-project --no-hashes -o "$constraints" >/dev/null)
-uv tool install --reinstall --python 3.13 --constraints "$constraints" "$repo"
+uv tool install --reinstall --constraints "$constraints" "$repo"
 if [ "$(uv tool dir --bin)" != "$HOME/.local/bin" ]; then
     echo "install.sh: uv installs tools outside ~/.local/bin; fix ExecStart in the unit" >&2
     exit 1

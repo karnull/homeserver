@@ -106,8 +106,9 @@ deploy/install.sh
 
 It creates the config and state directories, generates a token if there is none,
 installs Uplink into `~/.local/bin` and enables the `uplink` systemd user
-service. Re-run it after pulling changes. To keep the service running while you
-are logged out:
+service. uv picks the Python version that `pyproject.toml` requires and
+downloads it if the host does not have it. Re-run it after pulling changes.
+To keep the service running while you are logged out:
 
 ```sh
 loginctl enable-linger "$USER"
