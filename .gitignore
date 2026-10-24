@@ -1,0 +1,27 @@
+
+# .gitignore
+
+# misc
+**/.DS_Store
+**/*.swp
+**/*.swo
+**/.tags
+**/*~
+
+# custom notation for git ignored files
+**/,*
+
+# devcontainer session bash history
+.devcontainer/.bash_history
+
+# distribution / packaging
+/.v*env*/
+build/
+dist/
+*.egg-info/
+*__pycache__
+*.py[cdo]
+*$py.class
+*.eggs
+.installed.cfg
+
