@@ -29,7 +29,10 @@ chmod 600 "$token_file"
 constraints=$(mktemp)
 trap 'rm -f "$constraints"' EXIT
 (cd "$repo" && uv export --frozen --no-dev --no-emit-project --no-hashes -o "$constraints" >/dev/null)
-uv tool install --reinstall --constraints "$constraints" "$repo"
+uv python install --project "$repo"
+# Named explicitly because --reinstall otherwise keeps the old environment's Python.
+python=$(uv python find --project "$repo" --show-version)
+uv tool install --reinstall --python "$python" --constraints "$constraints" "$repo"
 if [ "$(uv tool dir --bin)" != "$HOME/.local/bin" ]; then
     echo "install.sh: uv installs tools outside ~/.local/bin; fix ExecStart in the unit" >&2
     exit 1

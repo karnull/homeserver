@@ -28,9 +28,9 @@ Errors always come back as `{"error": "<code>", "detail": "<text>"}`.
 
 ## Routes
 
-| Method | Path      | Returns                                        |
-| ------ | --------- | ---------------------------------------------- |
-| GET    | `/health` | `{"ok": true, "version": "…"}`, no auth needed |
+| Method | Path      | Returns                                                                  |
+| ------ | --------- | ------------------------------------------------------------------------ |
+| GET    | `/health` | `{"ok": true, "version": "…"}`, the version in `VERSION`, no auth needed |
 
 ### System (read only)
 

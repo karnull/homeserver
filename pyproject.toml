@@ -1,6 +1,6 @@
 [project]
 name = "uplink"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A narrow REST server that lets the judy container act on the host"
 authors = [
     { name = "Karnull", email = "karshmail@icloud.com" },
@@ -19,6 +19,11 @@ uplink = "uplink.app:main"
 
 [tool.uv]
 package = true
+# Rebuilds the package when VERSION changes, not only pyproject.toml.
+cache-keys = [{ file = "pyproject.toml" }, { file = "VERSION" }]
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
 
 [tool.setuptools.packages.find]
 include = ["uplink*"]
