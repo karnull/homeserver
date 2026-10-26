@@ -4,6 +4,8 @@ A small REST server that runs on the host so the `judy` container can act on
 it without the Docker socket or a shell. Every action is a fixed, named route.
 There is no generic "run this command" endpoint.
 
+Agents calling Uplink from a container should start with [skills.md](skills.md).
+
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json)](https://github.com/karshosphere/template-python)
 
 ## How it is reached

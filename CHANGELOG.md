@@ -9,3 +9,4 @@
 * feature/protected-projects: Judy's own project in ~/Blackwall/Judy and its containers are off-limits to every action.
 * feature/fork-endpoint: POST /projects/fork validates a folder name and GitHub URL; forking itself is not built yet.
 * fix/install-python: install.sh follows the project's Python version instead of pinning 3.13, including on hosts first set up with it, and every version reported comes from VERSION.
+* docs/agent-skill: skills.md, a guide for agents on calling Uplink's routes and handling its errors.
