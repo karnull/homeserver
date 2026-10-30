@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from uplink.docker_ops import Containers
 
 PROJECT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
-COMPOSE_FILE = Path(".devcontainer/compose.yaml")
+COMPOSE_FILE = "compose.yaml"
 OUTPUT_LIMIT = 64 * 1024
 GITHUB_REPO_URL = re.compile(
     r"https://github\.com/([A-Za-z0-9-]+)/([A-Za-z0-9][A-Za-z0-9._-]*?)(?:\.git)?/?"
@@ -24,6 +24,42 @@ GITHUB_REPO_URL = re.compile(
 
 def valid_project_name(name: str) -> bool:
     return PROJECT_NAME.fullmatch(name) is not None and name not in {".", ".."}
+
+
+def slugify(name: str) -> str:
+    # matches devenv's slugify, which names each project's folder in envs_dir
+    return re.sub(r"[^a-z0-9_-]+", "-", name.lower()).strip("-")
+
+
+def _env_project_root(env_dir: Path) -> Path | None:
+    try:
+        lines = (env_dir / ".env").read_text().splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        key, sep, value = line.partition("=")
+        if sep and key == "PROJECT_ROOT":
+            return Path(value)
+    return None
+
+
+def project_for_env(env_dir: Path, config: Config) -> str | None:
+    """The project a devenv folder belongs to, when its .env names exactly one."""
+    if not (env_dir / COMPOSE_FILE).is_file():
+        return None
+    root = _env_project_root(env_dir)
+    if root is None or root.is_symlink():
+        return None
+    root = root.resolve()
+    if root.parent != config.projects_dir.resolve() or not root.is_dir():
+        return None
+    if not valid_project_name(root.name) or slugify(root.name) != env_dir.name:
+        return None
+    return root.name
+
+
+def is_protected_project(name: str, config: Config) -> bool:
+    return name in config.protected_projects
 
 
 def _tail(text: str) -> str:
@@ -53,13 +89,18 @@ class Projects:
             raise UplinkError(
                 403, "outside_projects", f"{name} resolves outside {root}"
             )
-        if not (path / COMPOSE_FILE).is_file():
-            raise UplinkError(404, "project_not_found", f"no {COMPOSE_FILE} in {path}")
+        env_dir = self.config.envs_dir.resolve() / slugify(name)
+        if project_for_env(env_dir, self.config) != name:
+            raise UplinkError(
+                404,
+                "project_not_found",
+                f"{env_dir} holds no devenv project for {path}",
+            )
         return path
 
     def _actionable(self, name: str) -> Path:
         path = self.resolve(name)
-        if name in self.config.protected_projects:
+        if is_protected_project(name, self.config):
             raise UplinkError(403, "protected", f"{name} is protected")
         return path
 
@@ -103,7 +144,7 @@ class Projects:
             {
                 "name": name,
                 "path": str(self.resolve(name)),
-                "protected": name in self.config.protected_projects,
+                "protected": is_protected_project(name, self.config),
                 "containers": by_project.get(name, []),
             }
             for name in self._names()

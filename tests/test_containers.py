@@ -3,18 +3,21 @@ import json
 import pytest
 from docker.errors import APIError, DockerException
 
+from tests.devenv import make_env, make_project
 from tests.fake_docker import FakeDocker
 from uplink.docker_ops import Containers
 
 
 @pytest.fixture
 def fake(app, config):
+    for name in ["Judy", "blog", "shop"]:
+        make_project(config, name)
     fake = FakeDocker()
-    projects = config.projects_dir
-    fake.add("judy", "running", str(projects / ".devcontainer"))
-    fake.add("judy-devcontainer", "running", str(projects / "Judy" / ".devcontainer"))
-    fake.add("blog-dev", "exited", str(projects / "blog" / ".devcontainer"))
-    fake.add("shop-dev", "running", str(projects / "shop" / ".devcontainer"))
+    envs = config.envs_dir
+    fake.add("judy", "running", str(envs))
+    fake.add("judy-devcontainer", "running", str(envs / "judy"))
+    fake.add("blog-dev", "exited", str(envs / "blog"))
+    fake.add("shop-dev", "running", str(envs / "shop"))
     fake.add("postgres", "running", "/srv/postgres")
     fake.add("loose", "exited")
     app.state.containers = Containers(lambda: fake, config)
@@ -120,8 +123,8 @@ def test_refuses_containers_outside_projects(client, auth, fake, name):
     assert fake.calls == []
 
 
-def test_refuses_projects_dir_itself(client, auth, fake, app, config):
-    fake.add("odd", "running", str(config.projects_dir))
+def test_refuses_envs_dir_itself(client, auth, fake, app, config):
+    fake.add("odd", "running", str(config.envs_dir))
     assert (
         client.post("/containers/odd/stop", headers=auth).json()["error"]
         == "not_a_project"
@@ -129,7 +132,7 @@ def test_refuses_projects_dir_itself(client, auth, fake, app, config):
 
 
 def test_refuses_lookalike_dir(client, auth, fake, config):
-    fake.add("evil", "running", str(config.projects_dir) + "-evil/x")
+    fake.add("evil", "running", str(config.envs_dir) + "-evil/blog")
     assert (
         client.post("/containers/evil/stop", headers=auth).json()["error"]
         == "not_a_project"
@@ -140,7 +143,7 @@ def test_refuses_dotdot_out_of_projects(client, auth, fake, config):
     fake.add(
         "climber",
         "running",
-        str(config.projects_dir / "blog" / ".." / ".." / "elsewhere"),
+        str(config.envs_dir / "blog" / ".." / ".." / "elsewhere"),
     )
     assert (
         client.post("/containers/climber/stop", headers=auth).json()["error"]
@@ -148,13 +151,42 @@ def test_refuses_dotdot_out_of_projects(client, auth, fake, config):
     )
 
 
-def test_refuses_symlink_out_of_projects(client, auth, fake, config, tmp_path):
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (config.projects_dir / "sneaky").symlink_to(outside)
-    fake.add("sneaky-dev", "running", str(config.projects_dir / "sneaky"))
+def test_refuses_symlink_out_of_envs_dir(client, auth, fake, config, tmp_path):
+    outside = tmp_path / "elsewhere" / "blog"
+    outside.mkdir(parents=True)
+    (outside / "compose.yaml").write_text("services: {}\n")
+    (outside / ".env").write_text(f"PROJECT_ROOT={config.projects_dir / 'blog'}\n")
+    (config.envs_dir / "sneaky").symlink_to(outside)
+    fake.add("sneaky-dev", "running", str(config.envs_dir / "sneaky"))
     assert (
         client.post("/containers/sneaky-dev/stop", headers=auth).json()["error"]
+        == "not_a_project"
+    )
+
+
+def test_refuses_env_naming_another_project(client, auth, fake, config):
+    make_env(config, "evil", project_root=config.projects_dir / "blog")
+    fake.add("evil-dev", "running", str(config.envs_dir / "evil"))
+    assert (
+        client.post("/containers/evil-dev/stop", headers=auth).json()["error"]
+        == "not_a_project"
+    )
+
+
+def test_refuses_env_pointing_outside_projects(client, auth, fake, config, tmp_path):
+    (tmp_path / "loose").mkdir()
+    make_env(config, "loose", project_root=tmp_path / "loose")
+    fake.add("loose-dev", "running", str(config.envs_dir / "loose"))
+    assert (
+        client.post("/containers/loose-dev/stop", headers=auth).json()["error"]
+        == "not_a_project"
+    )
+
+
+def test_refuses_env_without_compose_file(client, auth, fake, config):
+    (config.envs_dir / "blog" / "compose.yaml").unlink()
+    assert (
+        client.post("/containers/blog-dev/start", headers=auth).json()["error"]
         == "not_a_project"
     )
 

@@ -10,7 +10,7 @@ from docker.errors import APIError, DockerException, NotFound
 
 from uplink.config import Config
 from uplink.errors import UplinkError
-from uplink.projects import valid_project_name
+from uplink.projects import is_protected_project, project_for_env
 
 WORKING_DIR_LABEL = "com.docker.compose.project.working_dir"
 CONTAINER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
@@ -29,31 +29,27 @@ def connect() -> DockerAPI:
     return docker.from_env().api
 
 
-def owning_project(labels: dict | None, projects_dir: Path) -> str | None:
+def owning_project(labels: dict | None, config: Config) -> str | None:
+    # devenv runs compose from envs_dir/<slug>, which compose labels as its working dir
     working_dir = (labels or {}).get(WORKING_DIR_LABEL)
     if not working_dir:
         return None
-    try:
-        relative = Path(working_dir).resolve().relative_to(projects_dir.resolve())
-    except ValueError:
+    env_dir = Path(working_dir).resolve()
+    if env_dir.parent != config.envs_dir.resolve():
         return None
-    if not relative.parts or not valid_project_name(relative.parts[0]):
-        return None
-    return relative.parts[0]
+    return project_for_env(env_dir, config)
 
 
 class Containers:
     def __init__(self, connect: Callable[[], DockerAPI], config: Config):
         self._connect = connect
         self._api: DockerAPI | None = None
-        self.projects_dir = config.projects_dir
-        self.protected = config.protected
-        self.protected_projects = config.protected_projects
+        self.config = config
 
     def _refusal(self, name: str, project: str | None) -> UplinkError | None:
-        if name in self.protected:
+        if name in self.config.protected:
             return UplinkError(403, "protected", f"{name} is protected")
-        if project in self.protected_projects:
+        if project is not None and is_protected_project(project, self.config):
             return UplinkError(
                 403, "protected", f"{name} belongs to the protected project {project}"
             )
@@ -61,7 +57,7 @@ class Containers:
             return UplinkError(
                 403,
                 "not_a_project",
-                f"{name} does not belong to a project in {self.projects_dir}",
+                f"{name} does not belong to a devenv project in {self.config.projects_dir}",
             )
         return None
 
@@ -81,7 +77,7 @@ class Containers:
 
     def _summary(self, entry: dict) -> dict:
         name = entry["Names"][0].lstrip("/") if entry.get("Names") else entry["Id"][:12]
-        project = owning_project(entry.get("Labels"), self.projects_dir)
+        project = owning_project(entry.get("Labels"), self.config)
         return {
             "name": name,
             "image": entry.get("Image"),
@@ -105,7 +101,7 @@ class Containers:
         state = attrs.get("State") or {}
         config = attrs.get("Config") or {}
         real_name = attrs["Name"].lstrip("/")
-        project = owning_project(config.get("Labels"), self.projects_dir)
+        project = owning_project(config.get("Labels"), self.config)
         return {
             "name": real_name,
             "id": attrs["Id"][:12],

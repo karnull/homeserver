@@ -11,6 +11,7 @@ def config(tmp_path):
     projects.mkdir()
     return Config(
         projects_dir=projects,
+        envs_dir=tmp_path / "devenv",
         socket_path=tmp_path / "uplink.sock",
         token_file=tmp_path / "token",
         audit_log=tmp_path / "audit.log",
