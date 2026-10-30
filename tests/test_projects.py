@@ -249,6 +249,15 @@ def test_refuses_folder_without_env(client, auth, fake, runs, root):
     )
 
 
+def test_protection_ignores_case(client, auth, fake, runs, config, root):
+    (root / "Judy").rename(root / "judy")
+    make_env(config, "judy", project_root=root / "judy")
+    response = client.post("/projects/judy/up", headers=auth)
+    assert response.status_code == 403
+    assert response.json()["error"] == "protected"
+    assert runs == []
+
+
 def test_slugs_match_devenv():
     assert projects_module.slugify("Judy") == "judy"
     assert projects_module.slugify("TokyoBurnNvim") == "tokyoburnnvim"

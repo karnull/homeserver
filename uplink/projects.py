@@ -59,7 +59,7 @@ def project_for_env(env_dir: Path, config: Config) -> str | None:
 
 
 def is_protected_project(name: str, config: Config) -> bool:
-    return name in config.protected_projects
+    return slugify(name) in {slugify(p) for p in config.protected_projects}
 
 
 def _tail(text: str) -> str:
