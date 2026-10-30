@@ -59,25 +59,29 @@ over 0.2 seconds, so `/system/cpu` and `/system/stats` take that long to answer.
 | POST   | `/containers/{name}/restart` | restart                                           |
 
 Listing covers every container on the host. Start, stop and restart only touch
-a container whose `com.docker.compose.project.working_dir` label resolves to a
-folder directly inside `projects_dir`; anything else gets `403 not_a_project`.
+a container that devenv started for a project: compose labels it with the folder
+it ran from (`com.docker.compose.project.working_dir`), and that must be the
+project's folder in `envs_dir`. Anything else gets `403 not_a_project`.
 Containers named in `protected` (by default `judy`), and every container
-belonging to a project in `protected_projects` (by default `Judy`), get
-`403 protected`, so Judy cannot stop itself. Both checks use the name Docker reports, so
+belonging to a project in `protected_projects` (by default `Judy`, matched in any letter case),
+get `403 protected`, so Judy cannot stop itself. Both checks use the name Docker reports, so
 addressing a container by ID does not get round them.
 
 ### Projects
 
 | Method | Path                  | Does                                                  |
 | ------ | --------------------- | ----------------------------------------------------- |
-| GET    | `/projects`           | folders in `projects_dir` with a compose file, and their containers |
+| GET    | `/projects`           | folders in `projects_dir` that devenv set up, and their containers |
 | POST   | `/projects/{name}/up` | `d up` in the project folder                          |
 | POST   | `/projects/{name}/down` | `d down` in the project folder                      |
 | POST   | `/projects/fork`      | fork a repository into a new project (not built yet)  |
 
-A project name must match `^[A-Za-z0-9][A-Za-z0-9._-]*$`, must be a real folder
-directly inside `projects_dir` (not a symlink), and must contain
-`.devcontainer/compose.yaml`. Anything else is refused before `d` runs.
+Projects are set up by devenv, from [agent-base](https://github.com/karshosphere/agent-base).
+A project name must match `^[A-Za-z0-9][A-Za-z0-9._-]*$` and be a real folder
+directly inside `projects_dir` (not a symlink). Its compose file must be at
+`envs_dir/<slug>/compose.yaml`, where the slug is the folder name in lower case,
+as devenv names it, and the `.env` beside it must give that folder as
+`PROJECT_ROOT`. Anything else is refused before `d` runs.
 Projects in `protected_projects` are listed, marked `"protected": true`, but
 `up` and `down` on them get `403 protected`.
 
@@ -86,10 +90,12 @@ The name follows the rules above and must not exist yet; the URL must be a plain
 HTTPS GitHub repository URL. A valid request currently gets
 `501 not_implemented`; the forking itself comes later.
 
-Judy lives in `~/Blackwall/Judy/` like any other project, and mounts only its
-own folder. Nothing that can reach Uplink can write another project's
-`.devcontainer`, which matters because `d up` on a hostile compose file would
-amount to root on the host.
+Judy lives in `~/Blackwall/Judy/` like any other project. devenv keeps every
+compose file in `envs_dir`, which no container mounts, so nothing that can reach
+Uplink can change what `d up` runs. That matters because `d up` on a hostile
+compose file would amount to root on the host. `up` does rebuild a project's
+image from its `.shard/Dockerfile`, which that project's agent can edit, but the
+compose file still decides the mounts and drops every capability.
 
 `up` and `down` run synchronously, so `d up` can take minutes while it builds.
 The response carries the command, its exit code and the last 64 KiB of stdout
@@ -123,6 +129,7 @@ is optional; unknown keys stop the service from starting.
 
 ```toml
 projects_dir = "~/Blackwall"
+envs_dir     = "~/.local/blackice/devenv"
 socket_path  = "~/.local/state/uplink/uplink.sock"
 token_file   = "~/.config/uplink/token"
 audit_log    = "~/.local/state/uplink/audit.log"
@@ -134,7 +141,9 @@ d_command    = "d"
 ```
 
 `d_command` is looked up on the service's `PATH`, which under systemd is short.
-If `d` lives somewhere like `~/bin`, give its full path.
+If `d` lives somewhere like `~/bin`, give its full path. With agent-base, point
+it at devenv, as in `d_command = "/home/<you>/.local/bin/devenv"`; `down` then
+stops the project's container without removing it.
 
 ## Audit log
 
@@ -163,7 +172,7 @@ curl -s --unix-socket "$sock" http://uplink/containers \
 curl -s --unix-socket "$sock" -X POST http://uplink/containers/judy/stop \
      -H "Authorization: Bearer $token"                  # {"error":"protected",...}
 curl -s --unix-socket "$sock" http://uplink/projects \
-     -H "Authorization: Bearer $token"                  # every project with a compose file
+     -H "Authorization: Bearer $token"                  # every project devenv set up
 curl -s --unix-socket "$sock" -X POST http://uplink/projects/uplink/up \
      -H "Authorization: Bearer $token"                  # exit code and output of d up
 tail -n 2 ~/.local/state/uplink/audit.log
