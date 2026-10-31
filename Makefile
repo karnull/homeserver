@@ -20,3 +20,18 @@ test:
 release:
 	rm -rf dist
 	uv build --out-dir dist
+
+# Host service tasks, run on the host rather than in a container.
+
+SERVICE := uplink
+
+.PHONY: start stop restart
+
+start:
+	deploy/install.sh
+
+stop:
+	systemctl --user stop $(SERVICE)
+
+restart:
+	systemctl --user restart $(SERVICE)
