@@ -32,7 +32,7 @@ Errors always come back as `{"error": "<code>", "detail": "<text>"}`.
 
 | Method | Path      | Returns                                                                  |
 | ------ | --------- | ------------------------------------------------------------------------ |
-| GET    | `/health` | `{"ok": true, "version": "…"}`, the version in `VERSION`, no auth needed |
+| GET    | `/health` | `{"ok": true, "version": "…"}`, the release version, no auth needed |
 
 ### System (read only)
 
