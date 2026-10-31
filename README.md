@@ -109,17 +109,24 @@ On the host, as your own user (never root), with [uv](https://docs.astral.sh/uv/
 installed and your user in the `docker` group:
 
 ```sh
-deploy/install.sh
+make start        # runs deploy/install.sh
 ```
 
 It creates the config and state directories, generates a token if there is none,
 installs Uplink into `~/.local/bin` and enables the `uplink` systemd user
 service. uv picks the Python version that `pyproject.toml` requires and
-downloads it if the host does not have it. Re-run it after pulling changes.
-To keep the service running while you are logged out:
+downloads it if the host does not have it. Run `make start` again after pulling
+changes. To keep the service running while you are logged out:
 
 ```sh
 loginctl enable-linger "$USER"
+```
+
+To stop or restart the running service without reinstalling it:
+
+```sh
+make stop
+make restart
 ```
 
 ## Config
