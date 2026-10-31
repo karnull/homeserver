@@ -2,6 +2,11 @@
 
 PACKAGE := uplink
 
+# CI passes the version it releases; without it, setuptools-scm reads the tags
+ifdef VERSION
+export SETUPTOOLS_SCM_PRETEND_VERSION := $(VERSION)
+endif
+
 .PHONY: build format format-dry-run test release
 
 build:

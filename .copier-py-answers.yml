@@ -1,7 +1,7 @@
 
 # .copier-py-answers.yml.jinja
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v2.1.0
+_commit: v4.0.0
 _src_path: gh:karshosphere/template-python
 lib_pack: []
 project_description: A narrow REST server that lets the judy container act on the

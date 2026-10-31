@@ -32,7 +32,7 @@ Errors always come back as `{"error": "<code>", "detail": "<text>"}`.
 
 | Method | Path      | Returns                                                                  |
 | ------ | --------- | ------------------------------------------------------------------------ |
-| GET    | `/health` | `{"ok": true, "version": "…"}`, the version in `VERSION`, no auth needed |
+| GET    | `/health` | `{"ok": true, "version": "…"}`, the release version, no auth needed |
 
 ### System (read only)
 
@@ -196,6 +196,8 @@ make format-dry-run   # list files that need formatting
 
 The tests use fakes in place of Docker, psutil and subprocess, so they run in a
 container with no Docker socket.
+
+The package version comes from the release tags through setuptools-scm, so there is nothing to bump. In CI it is the version being released; locally it is worked out from `git describe`, or `0.0.0` with no tags or no git.
 
 
 
