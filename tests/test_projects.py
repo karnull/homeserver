@@ -4,20 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.devenv import make_env, make_project
 from tests.fake_docker import FakeDocker
 from uplink import projects as projects_module
 from uplink.docker_ops import Containers
 from uplink.errors import UplinkError
 from uplink.projects import Projects
-
-
-def make_project(root, name, compose=True):
-    path = root / name
-    (path / ".devcontainer").mkdir(parents=True)
-    (path / "main").mkdir()
-    if compose:
-        (path / ".devcontainer" / "compose.yaml").write_text("services: {}\n")
-    return path
 
 
 @pytest.fixture
@@ -27,20 +19,20 @@ def root(config):
 
 @pytest.fixture
 def fake(app, config, root):
-    make_project(root, "blog")
-    make_project(root, "shop")
-    make_project(root, "notes", compose=False)
-    make_project(root, "Judy")
-    (root / ".devcontainer").mkdir()
-    (root / ".devcontainer" / "compose.yaml").write_text("services: {}\n")
+    make_project(config, "blog")
+    make_project(config, "shop")
+    make_project(config, "notes", compose=False)
+    make_project(config, "Judy")
+    make_env(config, "gone", project_root=root / "gone")
     (root / "README.md").write_text("not a project")
 
+    envs = config.envs_dir
     fake = FakeDocker()
-    fake.add("judy", "running", str(root / ".devcontainer"))
-    fake.add("judy-devcontainer", "running", str(root / "Judy" / ".devcontainer"))
-    fake.add("blog-devcontainer", "running", str(root / "blog" / ".devcontainer"))
-    fake.add("blog-db", "running", str(root / "blog" / ".devcontainer"))
-    fake.add("shop-devcontainer", "exited", str(root / "shop" / ".devcontainer"))
+    fake.add("judy", "running", str(envs))
+    fake.add("judy-devcontainer", "running", str(envs / "judy"))
+    fake.add("blog-devcontainer", "running", str(envs / "blog"))
+    fake.add("blog-db", "running", str(envs / "blog"))
+    fake.add("shop-devcontainer", "exited", str(envs / "shop"))
     app.state.containers = Containers(lambda: fake, config)
     app.state.projects = Projects(config, app.state.containers)
     return fake
@@ -214,8 +206,10 @@ def test_unit_refuses_dotdot_and_absolute(app, fake):
         assert e.value.code == "invalid_name"
 
 
-def test_refuses_symlink_out_of_projects(client, auth, fake, runs, root, tmp_path):
-    outside = make_project(tmp_path, "outside")
+def test_refuses_symlink_out_of_projects(
+    client, auth, fake, runs, root, config, tmp_path
+):
+    outside = make_project(config, "outside", root=tmp_path)
     (root / "escape").symlink_to(outside)
     response = client.post("/projects/escape/up", headers=auth)
     assert response.status_code == 403
@@ -236,6 +230,39 @@ def test_refuses_missing_compose_file(client, auth, fake, runs):
     assert response.status_code == 404
     assert response.json()["error"] == "project_not_found"
     assert runs == []
+
+
+def test_refuses_folder_whose_env_names_another(client, auth, fake, runs, config, root):
+    (root / "twin" / "main").mkdir(parents=True)
+    make_env(config, "twin", project_root=root / "blog")
+    response = client.post("/projects/twin/up", headers=auth)
+    assert response.status_code == 404
+    assert response.json()["error"] == "project_not_found"
+    assert runs == []
+
+
+def test_refuses_folder_without_env(client, auth, fake, runs, root):
+    (root / "bare" / "main").mkdir(parents=True)
+    assert (
+        client.post("/projects/bare/up", headers=auth).json()["error"]
+        == "project_not_found"
+    )
+
+
+def test_protection_ignores_case(client, auth, fake, runs, config, root):
+    (root / "Judy").rename(root / "judy")
+    make_env(config, "judy", project_root=root / "judy")
+    response = client.post("/projects/judy/up", headers=auth)
+    assert response.status_code == 403
+    assert response.json()["error"] == "protected"
+    assert runs == []
+
+
+def test_slugs_match_devenv():
+    assert projects_module.slugify("Judy") == "judy"
+    assert projects_module.slugify("TokyoBurnNvim") == "tokyoburnnvim"
+    assert projects_module.slugify("my.repo") == "my-repo"
+    assert projects_module.slugify("a..b__c") == "a-b__c"
 
 
 def test_unknown_project(client, auth, fake, runs):

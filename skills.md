@@ -90,8 +90,8 @@ its name does not get round either rule; Uplink checks the real name.
 
 ## Projects
 
-A project is a folder directly inside `~/Blackwall` that contains
-`.devcontainer/compose.yaml`.
+A project is a folder directly inside `~/Blackwall` that devenv set up. Its
+compose file lives on the host, out of every container's reach.
 
 | Call | Does |
 | --- | --- |
@@ -151,7 +151,7 @@ uplink POST /projects/fork -H 'Content-Type: application/json' \
 | 403 | `not_a_project` | the container does not belong to a project in `~/Blackwall` | stop; Uplink will never control it |
 | 403 | `outside_projects` | the project folder is a symlink or resolves outside `~/Blackwall` | stop |
 | 404 | `container_not_found` | no container by that name | list containers and check the name |
-| 404 | `project_not_found` | no such folder, or it has no `.devcontainer/compose.yaml` | list projects and check the name |
+| 404 | `project_not_found` | no such folder, or devenv has not set it up | list projects and check the name |
 | 404 | `not_found` | no such route | check the path against this guide |
 | 405 | `method_not_allowed` | wrong HTTP method for the route | check GET or POST |
 | 409 | `busy` | an `up` or `down` is already running on that project | wait for it to finish, then try again |

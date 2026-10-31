@@ -18,6 +18,7 @@ def test_missing_file_gives_defaults(tmp_path):
 def test_defaults_live_under_home():
     config = Config()
     assert config.projects_dir == Path.home() / "Blackwall"
+    assert config.envs_dir == Path.home() / ".local/blackice/devenv"
     assert config.protected == ("judy",)
     assert config.protected_projects == ("Judy",)
     assert config.command_timeout_seconds == 900
@@ -28,6 +29,7 @@ def test_reads_every_key(tmp_path):
         tmp_path,
         """
 projects_dir = "/srv/projects"
+envs_dir = "/srv/devenv"
 socket_path = "/run/uplink.sock"
 token_file = "/etc/uplink/token"
 audit_log = "/var/log/uplink.log"
@@ -40,6 +42,7 @@ d_command = "/usr/local/bin/d"
     )
     config = load_config(path)
     assert config.projects_dir == Path("/srv/projects")
+    assert config.envs_dir == Path("/srv/devenv")
     assert config.socket_path == Path("/run/uplink.sock")
     assert config.token_file == Path("/etc/uplink/token")
     assert config.audit_log == Path("/var/log/uplink.log")

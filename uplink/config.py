@@ -17,6 +17,7 @@ def _home(relative: str) -> Path:
 @dataclass(frozen=True)
 class Config:
     projects_dir: Path = field(default_factory=lambda: _home("Blackwall"))
+    envs_dir: Path = field(default_factory=lambda: _home(".local/blackice/devenv"))
     socket_path: Path = field(
         default_factory=lambda: _home(".local/state/uplink/uplink.sock")
     )
@@ -35,7 +36,7 @@ class ConfigError(Exception):
     pass
 
 
-_PATH_KEYS = {"projects_dir", "socket_path", "token_file", "audit_log"}
+_PATH_KEYS = {"projects_dir", "envs_dir", "socket_path", "token_file", "audit_log"}
 _LIST_KEYS = {"protected", "protected_projects", "disk_mounts"}
 
 
