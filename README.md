@@ -197,6 +197,8 @@ make format-dry-run   # list files that need formatting
 The tests use fakes in place of Docker, psutil and subprocess, so they run in a
 container with no Docker socket.
 
+The package version comes from the release tags through setuptools-scm, so there is nothing to bump. In CI it is the version being released; locally it is worked out from `git describe`, or `0.0.0` with no tags or no git.
+
 
 
 ## Copier Update

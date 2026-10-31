@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=80", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "uplink"
 dynamic = ["version"]
@@ -17,16 +21,21 @@ dependencies = [
 [project.scripts]
 uplink = "uplink.app:main"
 
-[tool.uv]
-package = true
-# Rebuilds the package when VERSION changes, not only pyproject.toml.
-cache-keys = [{ file = "pyproject.toml" }, { file = "VERSION" }]
-
-[tool.setuptools.dynamic]
-version = { file = "VERSION" }
+# setuptools-scm reads the release tags, or the version CI passes in through the Makefile
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
 
 [tool.setuptools.packages.find]
 include = ["uplink*"]
+
+[tool.uv]
+package = true
+# rebuild the installed project when the version changes, so its metadata stays current
+cache-keys = [
+    { file = "pyproject.toml" },
+    { git = { commit = true, tags = true } },
+    { env = "SETUPTOOLS_SCM_PRETEND_VERSION" },
+]
 
 [dependency-groups]
 dev = [
