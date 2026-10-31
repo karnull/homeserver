@@ -11,3 +11,4 @@
 * fix/install-python: install.sh follows the project's Python version instead of pinning 3.13, including on hosts first set up with it, and every version reported comes from VERSION.
 * docs/agent-skill: skills.md, a guide for agents on calling Uplink's routes and handling its errors.
 * fix/devenv-projects: projects and their containers are found where devenv keeps their compose files, so agents can control them.
+* feature/service-make-targets: make start, make stop and make restart run and control the host service.
